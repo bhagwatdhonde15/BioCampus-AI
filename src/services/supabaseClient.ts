@@ -51,24 +51,99 @@ export async function signOutSupabase() {
   if (error) throw error;
 }
 
-// 5. Database Sync: Fetch all plant records from Supabase
+// 5. Database Sync: Fetch all plant records from Supabase PostgreSQL
 export async function fetchPlantsFromSupabase(): Promise<PlantRecord[]> {
   try {
     const { data, error } = await supabase.from('plants').select('*');
     if (error || !data) return [];
-    return data as PlantRecord[];
+    
+    return data.map((row: any): PlantRecord => ({
+      id: row.id,
+      commonName: row.common_name,
+      scientificName: row.scientific_name,
+      treeType: row.tree_type,
+      confidence: row.confidence,
+      healthStatus: row.health_status,
+      healthScore: row.health_score,
+      diseases: [],
+      heightMeters: row.height_meters,
+      dbhCm: row.dbh_cm,
+      latitude: row.latitude,
+      longitude: row.longitude,
+      address: row.address,
+      zone: row.zone,
+      notes: row.notes,
+      photoBase64: row.photo_base64,
+      dateMapped: row.date_mapped,
+      campusName: row.campus_name,
+      growthLogs: [],
+      soilMoisturePercent: row.soil_moisture_percent,
+    }));
   } catch {
     return [];
   }
 }
 
-// 6. Database Sync: Save new plant record to Supabase
+// 6. Database Sync: Save single plant record to Supabase
 export async function savePlantToSupabase(record: PlantRecord) {
   try {
-    const { data, error } = await supabase.from('plants').insert([record]);
-    if (error) console.warn('Supabase insert warning:', error.message);
+    const row = {
+      id: record.id,
+      common_name: record.commonName,
+      scientific_name: record.scientificName,
+      tree_type: record.treeType || 'Deciduous Shade Tree',
+      confidence: record.confidence || 0.95,
+      health_status: record.healthStatus || 'Healthy',
+      health_score: record.healthScore || 90,
+      height_meters: record.heightMeters || 3.0,
+      dbh_cm: record.dbhCm || 15.0,
+      latitude: record.latitude,
+      longitude: record.longitude,
+      address: record.address || '',
+      zone: record.zone || 'Main Campus',
+      notes: record.notes || '',
+      photo_base64: record.photoBase64 || '',
+      date_mapped: record.dateMapped || new Date().toISOString(),
+      campus_name: record.campusName || 'Sanjivani University',
+      soil_moisture_percent: record.soilMoisturePercent,
+    };
+
+    const { data, error } = await supabase.from('plants').upsert([row]);
+    if (error) console.warn('Supabase upsert warning:', error.message);
     return data;
-  } catch {
-    // Supabase offline / fallback to local storage
+  } catch (err) {
+    console.warn('Supabase error:', err);
+  }
+}
+
+// 7. Bulk Sync All Campus Plants to Supabase
+export async function syncAllPlantsToSupabase(records: PlantRecord[]) {
+  try {
+    const rows = records.map((record) => ({
+      id: record.id,
+      common_name: record.commonName,
+      scientific_name: record.scientificName,
+      tree_type: record.treeType || 'Deciduous Shade Tree',
+      confidence: record.confidence || 0.95,
+      health_status: record.healthStatus || 'Healthy',
+      health_score: record.healthScore || 90,
+      height_meters: record.heightMeters || 3.0,
+      dbh_cm: record.dbhCm || 15.0,
+      latitude: record.latitude,
+      longitude: record.longitude,
+      address: record.address || '',
+      zone: record.zone || 'Main Campus',
+      notes: record.notes || '',
+      photo_base64: record.photoBase64 || '',
+      date_mapped: record.dateMapped || new Date().toISOString(),
+      campus_name: record.campusName || 'Sanjivani University',
+      soil_moisture_percent: record.soilMoisturePercent,
+    }));
+
+    const { data, error } = await supabase.from('plants').upsert(rows);
+    if (error) console.warn('Supabase bulk sync warning:', error.message);
+    return { success: !error, count: rows.length };
+  } catch (err) {
+    return { success: false, error: err };
   }
 }
