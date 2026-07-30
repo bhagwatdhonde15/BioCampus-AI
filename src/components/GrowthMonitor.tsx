@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import {
-  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  Activity, TrendingUp, AlertTriangle, CheckCircle2, HeartPulse, Plus, Search, Filter, ShieldCheck, Ruler, Calendar, X
+  Activity, TrendingUp, AlertTriangle, HeartPulse, Plus, Search, Filter, ShieldCheck, Ruler, X, Droplets
 } from 'lucide-react';
 import { PlantRecord, GrowthLog, HealthStatus } from '../types/plant';
 
@@ -28,7 +28,6 @@ export const GrowthMonitor: React.FC<GrowthMonitorProps> = ({
   const [newHealthStatus, setNewHealthStatus] = useState<HealthStatus>('Healthy');
   const [newHealthScore, setNewHealthScore] = useState<number>(90);
   const [newNotes, setNewNotes] = useState<string>('');
-  const [newCareAction, setNewCareAction] = useState<string>('');
 
   // Overall KPIs
   const totalTrees = records.length;
@@ -56,7 +55,6 @@ export const GrowthMonitor: React.FC<GrowthMonitorProps> = ({
     setNewHealthStatus(plant.healthStatus || 'Healthy');
     setNewHealthScore(plant.healthScore || (plant.healthStatus === 'Healthy' ? 90 : 45));
     setNewNotes('');
-    setNewCareAction(plant.careActionNeeded || '');
   };
 
   const handleSaveInspection = (e: React.FormEvent) => {
@@ -88,7 +86,7 @@ export const GrowthMonitor: React.FC<GrowthMonitorProps> = ({
             <Activity className="text-bioskyblue" /> Plant & Tree Growth Monitoring System
           </h2>
           <p className="text-slate-500 text-sm mt-0.5">
-            Monitor tree health scorecards, diagnostic symptoms, growth velocity, and periodic arborist logs.
+            Monitor tree health scorecards, diagnostic symptoms, growth velocity, and live ESP8266 IoT soil moisture.
           </p>
         </div>
       </div>
@@ -230,15 +228,25 @@ export const GrowthMonitor: React.FC<GrowthMonitorProps> = ({
                       </span>
                     </div>
 
-                    {/* Metrics Bar */}
-                    <div className="grid grid-cols-2 gap-2 my-3 p-3 bg-sky-50/70 rounded-xl border border-sky-100 text-xs">
+                    {/* Metrics Bar including ESP8266 Live Soil Moisture */}
+                    <div className="grid grid-cols-3 gap-2 my-3 p-3 bg-sky-50/70 rounded-xl border border-sky-100 text-xs">
                       <div>
-                        <span className="text-slate-400 font-medium block">Current Height</span>
-                        <span className="font-bold text-bioblue text-sm">{record.heightMeters || 2.5} meters</span>
+                        <span className="text-slate-400 font-medium block">Height</span>
+                        <span className="font-bold text-bioblue text-xs">{record.heightMeters || 2.5}m</span>
                       </div>
                       <div>
                         <span className="text-slate-400 font-medium block">Trunk DBH</span>
-                        <span className="font-bold text-bioblue text-sm">{record.dbhCm || 12} cm</span>
+                        <span className="font-bold text-bioblue text-xs">{record.dbhCm || 12}cm</span>
+                      </div>
+                      <div>
+                        <span className="text-slate-400 font-medium block flex items-center gap-0.5">
+                          <Droplets size={10} className="text-bioskyblue" /> Live IoT
+                        </span>
+                        <span className={`font-bold text-xs ${
+                          record.soilMoisturePercent !== undefined ? 'text-emerald-600' : 'text-slate-400'
+                        }`}>
+                          {record.soilMoisturePercent !== undefined ? `${record.soilMoisturePercent}% Moisture` : 'Offline'}
+                        </span>
                       </div>
                     </div>
 

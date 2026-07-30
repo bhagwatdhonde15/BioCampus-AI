@@ -22,7 +22,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
   onUpdatePlantMoisture,
 }) => {
   const [espIp] = useState<string>('10.58.122.4');
-  const [moisturePercent, setMoisturePercent] = useState<number>(55);
+  const [moisturePercent, setMoisturePercent] = useState<number | null>(null);
   const [isLiveRealData, setIsLiveRealData] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState<string>('--');
   const [history, setHistory] = useState<HistoryPoint[]>([]);
@@ -87,7 +87,13 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
           const updated = [...prev, { time: timeStr.slice(0, 5), moisture: clamped }];
           return updated.slice(-25);
         });
+
+        // Broadcast live reading to all campus plants in store
+        records.forEach((r) => {
+          onUpdatePlantMoisture(r.id, clamped);
+        });
       } else {
+        setMoisturePercent(null);
         setIsLiveRealData(false);
         setFetchErrorMsg(`Unable to reach ESP8266 at http://${espIp}/data.`);
       }
@@ -96,43 +102,47 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
     fetchRealData();
     const interval = setInterval(fetchRealData, 1500);
     return () => clearInterval(interval);
-  }, [espIp]);
+  }, [espIp, records, onUpdatePlantMoisture]);
 
   // Circumference calculation for circular gauge (r=70 => circumference = 439.82)
   const circumference = 439.82;
-  const strokeDashoffset = circumference - (moisturePercent / 100) * circumference;
+  const strokeDashoffset = isLiveRealData && moisturePercent !== null
+    ? circumference - (moisturePercent / 100) * circumference
+    : circumference; // Empty gauge when offline
 
   // Determine moisture status, color, advice and emoji
-  let statusColor = '#4CAF50';
-  let statusEmoji = '🌱';
-  let adviceMsg = '✅ Moisture is good.';
-  let adviceClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
-  let emojiAnimClass = 'animate-bounce';
+  let statusColor = '#94A3B8';
+  let statusEmoji = '📡';
+  let adviceMsg = '⚠️ SENSOR NOT CONNECTED';
+  let adviceClass = 'bg-amber-50 text-amber-800 border-amber-200';
+  let emojiAnimClass = 'animate-pulse';
 
-  if (moisturePercent < 30) {
-    statusColor = '#F44336';
-    statusEmoji = '🥀';
-    adviceMsg = '🚨 Water now! Soil is too dry.';
-    adviceClass = 'bg-red-50 text-red-800 border-red-200';
-    emojiAnimClass = 'animate-pulse';
-  } else if (moisturePercent < 50) {
-    statusColor = '#FF9800';
-    statusEmoji = '🌿';
-    adviceMsg = '💧 Consider watering soon.';
-    adviceClass = 'bg-amber-50 text-amber-800 border-amber-200';
-    emojiAnimClass = 'animate-bounce';
-  } else if (moisturePercent <= 75) {
-    statusColor = '#4CAF50';
-    statusEmoji = '🌱';
-    adviceMsg = '✅ Moisture is good.';
-    adviceClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
-    emojiAnimClass = 'animate-pulse';
-  } else {
-    statusColor = '#2196F3';
-    statusEmoji = '💧';
-    adviceMsg = '💦 Very wet – no water needed.';
-    adviceClass = 'bg-sky-50 text-sky-800 border-sky-200';
-    emojiAnimClass = '';
+  if (isLiveRealData && moisturePercent !== null) {
+    if (moisturePercent < 30) {
+      statusColor = '#F44336';
+      statusEmoji = '🥀';
+      adviceMsg = '🚨 Water now! Soil is too dry.';
+      adviceClass = 'bg-red-50 text-red-800 border-red-200';
+      emojiAnimClass = 'animate-pulse';
+    } else if (moisturePercent < 50) {
+      statusColor = '#FF9800';
+      statusEmoji = '🌿';
+      adviceMsg = '💧 Consider watering soon.';
+      adviceClass = 'bg-amber-50 text-amber-800 border-amber-200';
+      emojiAnimClass = 'animate-bounce';
+    } else if (moisturePercent <= 75) {
+      statusColor = '#4CAF50';
+      statusEmoji = '🌱';
+      adviceMsg = '✅ Moisture is good.';
+      adviceClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+      emojiAnimClass = 'animate-bounce';
+    } else {
+      statusColor = '#2196F3';
+      statusEmoji = '💧';
+      adviceMsg = '💦 Very wet – no water needed.';
+      adviceClass = 'bg-sky-50 text-sky-800 border-sky-200';
+      emojiAnimClass = '';
+    }
   }
 
   return (
@@ -150,19 +160,19 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
                 ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
                 : 'bg-amber-100 text-amber-800 border-amber-300'
             }`}>
-              {isLiveRealData ? '🟢 REAL SENSOR STREAMING' : '⚠️ SENSOR OFFLINE / CONNECTING'}
+              {isLiveRealData ? '🟢 REAL SENSOR STREAMING' : '⚠️ SENSOR NOT CONNECTED'}
             </span>
           </div>
         </div>
       </div>
 
       {/* Sensor Offline Alert if applicable */}
-      {fetchErrorMsg && !isLiveRealData && (
+      {!isLiveRealData && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs flex items-center gap-3">
           <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
           <div>
-            <p className="font-bold">ESP8266 Hardware Unreachable at {espIp}</p>
-            <p className="text-amber-700 mt-0.5">{fetchErrorMsg}</p>
+            <p className="font-bold">ESP8266 Hardware Not Connected at {espIp}</p>
+            <p className="text-amber-700 mt-0.5">Please ensure ESP8266 NodeMCU is powered on and connected to local WiFi.</p>
           </div>
         </div>
       )}
@@ -176,7 +186,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
             <span className="font-mono font-bold text-bioblue">HTTP://{espIp}/DATA</span>
             <span className="flex items-center gap-1 font-semibold">
               {isLiveRealData ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-amber-500" />}
-              {isLiveRealData ? 'Real Hardware Stream' : 'Connecting...'}
+              {isLiveRealData ? 'Real Hardware Stream' : 'Not Connected'}
             </span>
           </div>
 
@@ -206,9 +216,18 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
             </svg>
 
             {/* Gauge Center Text */}
-            <div className="absolute inset-0 flex flex-col items-center justify-center">
-              <span className="text-4xl font-extrabold text-bioblue">{moisturePercent}</span>
-              <span className="text-sm font-semibold text-slate-400">% Moisture</span>
+            <div className="absolute inset-0 flex flex-col items-center justify-center text-center">
+              {isLiveRealData && moisturePercent !== null ? (
+                <>
+                  <span className="text-4xl font-extrabold text-bioblue">{moisturePercent}</span>
+                  <span className="text-sm font-semibold text-slate-400">% Moisture</span>
+                </>
+              ) : (
+                <>
+                  <span className="text-lg font-extrabold text-amber-600 uppercase tracking-wide">NOT CONNECTED</span>
+                  <span className="text-xs text-slate-400 font-mono mt-1">10.58.122.4</span>
+                </>
+              )}
             </div>
           </div>
 
