@@ -1,9 +1,9 @@
 import { createClient } from '@supabase/supabase-js';
 import { PlantRecord } from '../types/plant';
 
-// Env configuration for Supabase
-const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xyzbiocampus.supabase.co';
-const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5emJpb2NhbXB1cyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA4OTAwMDAwLCJleHAiOjIwMjQ0NzYwMDB9.placeholder';
+// Live Supabase Project Credentials
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || import.meta.env.NEXT_PUBLIC_SUPABASE_URL || 'https://jdrpklxrpwfkqxyzujkt.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || import.meta.env.NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY || 'sb_publishable_o_G1UxN0ohijznaOixBhkQ_fUAde-tc';
 
 export const supabase = createClient(supabaseUrl, supabaseAnonKey);
 
