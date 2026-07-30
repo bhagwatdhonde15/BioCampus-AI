@@ -1,5 +1,6 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useEffect } from 'react';
 import { PlantRecord, GrowthLog } from '../types/plant';
+import { fetchPlantsFromSupabase, savePlantToSupabase } from '../services/supabaseClient';
 
 const STORAGE_KEY = 'biocampus_plant_records';
 
@@ -23,12 +24,27 @@ function saveToStorage(records: PlantRecord[]): void {
 export function usePlantStore() {
   const [records, setRecords] = useState<PlantRecord[]>(loadFromStorage);
 
+  // Auto-sync with live Supabase database on launch
+  useEffect(() => {
+    let isSubscribed = true;
+    fetchPlantsFromSupabase().then((supabaseRecords) => {
+      if (isSubscribed && supabaseRecords && supabaseRecords.length > 0) {
+        setRecords(supabaseRecords);
+        saveToStorage(supabaseRecords);
+      }
+    });
+    return () => {
+      isSubscribed = false;
+    };
+  }, []);
+
   const addPlant = useCallback((record: PlantRecord) => {
     setRecords((prev) => {
       const updated = [record, ...prev];
       saveToStorage(updated);
       return updated;
     });
+    savePlantToSupabase(record);
   }, []);
 
   const deletePlant = useCallback((id: string) => {
@@ -44,7 +60,7 @@ export function usePlantStore() {
       const updated = prev.map((r) => {
         if (r.id === plantId) {
           const logs = r.growthLogs ? [log, ...r.growthLogs] : [log];
-          return {
+          const updatedRecord = {
             ...r,
             heightMeters: log.heightMeters,
             dbhCm: log.dbhCm,
@@ -52,6 +68,8 @@ export function usePlantStore() {
             healthScore: log.healthScore,
             growthLogs: logs,
           };
+          savePlantToSupabase(updatedRecord);
+          return updatedRecord;
         }
         return r;
       });
