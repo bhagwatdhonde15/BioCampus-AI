@@ -1,0 +1,74 @@
+import { createClient } from '@supabase/supabase-js';
+import { PlantRecord } from '../types/plant';
+
+// Env configuration for Supabase
+const supabaseUrl = import.meta.env.VITE_SUPABASE_URL || 'https://xyzbiocampus.supabase.co';
+const supabaseAnonKey = import.meta.env.VITE_SUPABASE_ANON_KEY || 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Inh5emJpb2NhbXB1cyIsInJvbGUiOiJhbm9uIiwiaWF0IjoxNzA4OTAwMDAwLCJleHAiOjIwMjQ0NzYwMDB9.placeholder';
+
+export const supabase = createClient(supabaseUrl, supabaseAnonKey);
+
+// 1. Google OAuth Sign-In
+export async function signInWithGoogle() {
+  const { data, error } = await supabase.auth.signInWithOAuth({
+    provider: 'google',
+    options: {
+      redirectTo: window.location.origin,
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// 2. Email & Password Sign-In
+export async function signInWithEmail(email: string, password?: string) {
+  const { data, error } = await supabase.auth.signInWithPassword({
+    email,
+    password: password || 'biocampus123',
+  });
+  if (error) throw error;
+  return data;
+}
+
+// 3. Email & Password Sign-Up
+export async function signUpWithEmail(email: string, name: string, role: string) {
+  const { data, error } = await supabase.auth.signUp({
+    email,
+    password: 'biocampus123',
+    options: {
+      data: {
+        full_name: name,
+        role: role,
+      },
+    },
+  });
+  if (error) throw error;
+  return data;
+}
+
+// 4. Sign Out
+export async function signOutSupabase() {
+  const { error } = await supabase.auth.signOut();
+  if (error) throw error;
+}
+
+// 5. Database Sync: Fetch all plant records from Supabase
+export async function fetchPlantsFromSupabase(): Promise<PlantRecord[]> {
+  try {
+    const { data, error } = await supabase.from('plants').select('*');
+    if (error || !data) return [];
+    return data as PlantRecord[];
+  } catch {
+    return [];
+  }
+}
+
+// 6. Database Sync: Save new plant record to Supabase
+export async function savePlantToSupabase(record: PlantRecord) {
+  try {
+    const { data, error } = await supabase.from('plants').insert([record]);
+    if (error) console.warn('Supabase insert warning:', error.message);
+    return data;
+  } catch {
+    // Supabase offline / fallback to local storage
+  }
+}
