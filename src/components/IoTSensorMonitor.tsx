@@ -1,0 +1,270 @@
+import React, { useState, useEffect } from 'react';
+import {
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
+} from 'recharts';
+import {
+  Droplets, Wifi, WifiOff, AlertTriangle
+} from 'lucide-react';
+import { PlantRecord } from '../types/plant';
+
+interface IoTSensorMonitorProps {
+  records: PlantRecord[];
+  onUpdatePlantMoisture: (plantId: string, percent: number) => void;
+}
+
+interface HistoryPoint {
+  time: string;
+  moisture: number;
+}
+
+export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
+  records,
+  onUpdatePlantMoisture,
+}) => {
+  const [espIp] = useState<string>('10.58.122.4');
+  const [moisturePercent, setMoisturePercent] = useState<number>(55);
+  const [isLiveRealData, setIsLiveRealData] = useState<boolean>(false);
+  const [lastUpdate, setLastUpdate] = useState<string>('--');
+  const [history, setHistory] = useState<HistoryPoint[]>([]);
+  const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null);
+
+  // Poll ESP8266 Sensor endpoint at 10.58.122.4
+  useEffect(() => {
+    const fetchRealData = async () => {
+      let percentVal: number | null = null;
+      let isReal = false;
+
+      // 1. Try Proxied Endpoint first (bypasses browser CORS)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 1800);
+        const res = await fetch('/esp-data', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.percent === 'number') {
+            percentVal = data.percent;
+            isReal = true;
+          }
+        }
+      } catch {
+        // Continue to direct IP attempt
+      }
+
+      // 2. Try Direct HTTP fetch if proxy didn't succeed
+      if (percentVal === null) {
+        try {
+          const controller = new AbortController();
+          const timeoutId = setTimeout(() => controller.abort(), 1800);
+          const directUrl = `http://${espIp}/data`;
+          const res = await fetch(directUrl, { signal: controller.signal });
+          clearTimeout(timeoutId);
+
+          if (res.ok) {
+            const data = await res.json();
+            if (typeof data.percent === 'number') {
+              percentVal = data.percent;
+              isReal = true;
+            }
+          }
+        } catch {
+          // Both real attempts failed
+        }
+      }
+
+      // Process real data
+      const timeStr = new Date().toLocaleTimeString();
+      setLastUpdate(timeStr);
+
+      if (isReal && percentVal !== null) {
+        const clamped = Math.min(100, Math.max(0, Math.round(percentVal)));
+        setMoisturePercent(clamped);
+        setIsLiveRealData(true);
+        setFetchErrorMsg(null);
+
+        setHistory((prev) => {
+          const updated = [...prev, { time: timeStr.slice(0, 5), moisture: clamped }];
+          return updated.slice(-25);
+        });
+      } else {
+        setIsLiveRealData(false);
+        setFetchErrorMsg(`Unable to reach ESP8266 at http://${espIp}/data.`);
+      }
+    };
+
+    fetchRealData();
+    const interval = setInterval(fetchRealData, 1500);
+    return () => clearInterval(interval);
+  }, [espIp]);
+
+  // Circumference calculation for circular gauge (r=70 => circumference = 439.82)
+  const circumference = 439.82;
+  const strokeDashoffset = circumference - (moisturePercent / 100) * circumference;
+
+  // Determine moisture status, color, advice and emoji
+  let statusColor = '#4CAF50';
+  let statusEmoji = '🌱';
+  let adviceMsg = '✅ Moisture is good.';
+  let adviceClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+  let emojiAnimClass = 'animate-bounce';
+
+  if (moisturePercent < 30) {
+    statusColor = '#F44336';
+    statusEmoji = '🥀';
+    adviceMsg = '🚨 Water now! Soil is too dry.';
+    adviceClass = 'bg-red-50 text-red-800 border-red-200';
+    emojiAnimClass = 'animate-pulse';
+  } else if (moisturePercent < 50) {
+    statusColor = '#FF9800';
+    statusEmoji = '🌿';
+    adviceMsg = '💧 Consider watering soon.';
+    adviceClass = 'bg-amber-50 text-amber-800 border-amber-200';
+    emojiAnimClass = 'animate-bounce';
+  } else if (moisturePercent <= 75) {
+    statusColor = '#4CAF50';
+    statusEmoji = '🌱';
+    adviceMsg = '✅ Moisture is good.';
+    adviceClass = 'bg-emerald-50 text-emerald-800 border-emerald-200';
+    emojiAnimClass = 'animate-pulse';
+  } else {
+    statusColor = '#2196F3';
+    statusEmoji = '💧';
+    adviceMsg = '💦 Very wet – no water needed.';
+    adviceClass = 'bg-sky-50 text-sky-800 border-sky-200';
+    emojiAnimClass = '';
+  }
+
+  return (
+    <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
+      
+      {/* Header */}
+      <div className="flex justify-between items-start flex-wrap gap-4">
+        <div>
+          <div className="flex items-center gap-2">
+            <h2 className="text-2xl font-bold text-bioblue flex items-center gap-2">
+              <Droplets className="text-bioskyblue" /> ESP8266 Live Soil Moisture Telemetry
+            </h2>
+            <span className={`text-xs font-bold px-2.5 py-0.5 rounded-full border ${
+              isLiveRealData
+                ? 'bg-emerald-100 text-emerald-800 border-emerald-300'
+                : 'bg-amber-100 text-amber-800 border-amber-300'
+            }`}>
+              {isLiveRealData ? '🟢 REAL SENSOR STREAMING' : '⚠️ SENSOR OFFLINE / CONNECTING'}
+            </span>
+          </div>
+        </div>
+      </div>
+
+      {/* Sensor Offline Alert if applicable */}
+      {fetchErrorMsg && !isLiveRealData && (
+        <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs flex items-center gap-3">
+          <AlertTriangle size={18} className="text-amber-600 flex-shrink-0" />
+          <div>
+            <p className="font-bold">ESP8266 Hardware Unreachable at {espIp}</p>
+            <p className="text-amber-700 mt-0.5">{fetchErrorMsg}</p>
+          </div>
+        </div>
+      )}
+
+      {/* Main Grid Section */}
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+        
+        {/* Left Card: Circular Animated Moisture Gauge */}
+        <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 text-center flex flex-col items-center justify-between">
+          <div className="w-full flex justify-between items-center text-xs text-slate-400 mb-2">
+            <span className="font-mono font-bold text-bioblue">HTTP://{espIp}/DATA</span>
+            <span className="flex items-center gap-1 font-semibold">
+              {isLiveRealData ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-amber-500" />}
+              {isLiveRealData ? 'Real Hardware Stream' : 'Connecting...'}
+            </span>
+          </div>
+
+          {/* SVG Circular Gauge */}
+          <div className="relative w-52 h-52 my-4">
+            <svg className="w-full h-full transform -rotate-90" viewBox="0 0 160 160">
+              <circle
+                cx="80"
+                cy="80"
+                r="70"
+                fill="none"
+                stroke="#F0F9FF"
+                strokeWidth="14"
+              />
+              <circle
+                cx="80"
+                cy="80"
+                r="70"
+                fill="none"
+                stroke={statusColor}
+                strokeWidth="14"
+                strokeDasharray={circumference}
+                strokeDashoffset={strokeDashoffset}
+                strokeLinecap="round"
+                className="transition-all duration-500 ease-out"
+              />
+            </svg>
+
+            {/* Gauge Center Text */}
+            <div className="absolute inset-0 flex flex-col items-center justify-center">
+              <span className="text-4xl font-extrabold text-bioblue">{moisturePercent}</span>
+              <span className="text-sm font-semibold text-slate-400">% Moisture</span>
+            </div>
+          </div>
+
+          {/* Animated Plant Emoji */}
+          <div className="my-2">
+            <span className={`text-6xl inline-block transition-transform ${emojiAnimClass}`}>
+              {statusEmoji}
+            </span>
+          </div>
+
+          {/* Advice Status Banner */}
+          <div className={`w-full p-3.5 rounded-2xl border text-sm font-extrabold text-center transition-all ${adviceClass}`}>
+            {adviceMsg}
+          </div>
+
+          {/* Timestamp */}
+          <div className="text-[11px] text-slate-400 mt-4">
+            Last update: <span className="font-mono text-slate-600 font-semibold">{lastUpdate}</span>
+          </div>
+        </div>
+
+        {/* Right 2 Columns: Moisture Trend Line Chart */}
+        <div className="lg:col-span-2">
+          <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 h-full flex flex-col justify-between">
+            <div className="flex justify-between items-center mb-4">
+              <div>
+                <h3 className="font-bold text-bioblue text-base">Real-Time Soil Moisture Trend</h3>
+                <p className="text-slate-400 text-xs">Live 1.5s interval readings from ESP12E Analog Pin A0 ({espIp})</p>
+              </div>
+              <span className="text-xs font-mono font-bold bg-sky-50 text-bioskyblue border border-sky-200 px-2.5 py-1 rounded-lg">
+                {history.length} Data Points
+              </span>
+            </div>
+
+            {history.length > 0 ? (
+              <div className="h-72 w-full">
+                <ResponsiveContainer width="100%" height="100%">
+                  <LineChart data={history}>
+                    <CartesianGrid strokeDasharray="3 3" stroke="#F0F9FF" />
+                    <XAxis dataKey="time" tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <YAxis domain={[0, 100]} tick={{ fontSize: 11, fill: '#64748B' }} />
+                    <Tooltip contentStyle={{ borderRadius: '12px', border: '1px solid #E0F2FE', fontSize: '12px' }} />
+                    <Line type="monotone" dataKey="moisture" stroke="#0284C7" strokeWidth={3} dot={{ r: 3, fill: '#1E3A8A' }} name="Moisture %" />
+                  </LineChart>
+                </ResponsiveContainer>
+              </div>
+            ) : (
+              <div className="h-72 w-full flex items-center justify-center text-slate-400 text-sm italic border border-dashed border-sky-100 rounded-xl">
+                Waiting for first data payload from http://{espIp}/data...
+              </div>
+            )}
+          </div>
+        </div>
+
+      </div>
+
+    </div>
+  );
+};

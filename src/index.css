@@ -1,0 +1,80 @@
+@import url('https://fonts.googleapis.com/css2?family=Jost:wght@400;500;600;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+/* Leaflet map fixes */
+.leaflet-container {
+  width: 100%;
+  height: 100%;
+  border-radius: 0.75rem;
+  z-index: 0;
+}
+
+.leaflet-popup-content-wrapper {
+  border-radius: 12px;
+  box-shadow: 0 10px 40px rgba(30, 58, 138, 0.15);
+  border: 1px solid #DBE8FE;
+  padding: 0;
+  overflow: hidden;
+}
+
+.leaflet-popup-tip {
+  background: white;
+}
+
+.leaflet-popup-content {
+  margin: 0;
+  width: auto !important;
+}
+
+/* Pulsing GPS marker */
+.gps-pulse-ring {
+  border: 3px solid #1E3A8A;
+  border-radius: 50%;
+  animation: gps-ripple 1.5s ease-out infinite;
+  position: absolute;
+  top: 50%; left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+@keyframes gps-ripple {
+  0%   { width: 10px; height: 10px; opacity: 1; }
+  100% { width: 40px; height: 40px; opacity: 0; }
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: #F0F9FF; }
+::-webkit-scrollbar-thumb { background: #BAE6FD; border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: #0284C7; }
+
+/* Print styles for QR tag */
+@media print {
+  body * { visibility: hidden !important; }
+  #qr-print-zone, #qr-print-zone * { visibility: visible !important; }
+  #qr-print-zone {
+    position: absolute !important;
+    left: 0 !important; top: 0 !important;
+    width: 100% !important;
+  }
+}
+
+/* Sliding Auth Card CSS (User Custom Style) */
+.slide-auth-main {
+  width: 360px;
+  height: 540px;
+  overflow: hidden;
+  background: linear-gradient(to bottom, #0f0c29, #302b63, #24243e);
+  border-radius: 16px;
+  box-shadow: 5px 20px 50px rgba(0, 0, 0, 0.7);
+  position: relative;
+}
+
+.slide-auth-main input[type="text"],
+.slide-auth-main input[type="email"],
+.slide-auth-main input[type="tel"],
+.slide-auth-main input[type="password"] {
+  background: #e0dede;
+}
