@@ -1,5 +1,5 @@
 -- =========================================================================
--- BIOCAMPUS AI - SUPABASE DATABASE SCHEMA
+-- BIOCAMPUS AI - SUPABASE DATABASE SCHEMA (SAFE RE-RUNNABLE SCRIPT)
 -- Copy & paste this code into your Supabase Dashboard -> SQL Editor -> Run
 -- =========================================================================
 
@@ -47,12 +47,23 @@ CREATE TABLE IF NOT EXISTS public.iot_telemetry (
     timestamp TIMESTAMP WITH TIME ZONE DEFAULT NOW()
 );
 
--- 4. Enable Row Level Security (RLS) & Public Read/Write Policies
+-- 4. Enable Row Level Security (RLS)
 ALTER TABLE public.plants ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.growth_logs ENABLE ROW LEVEL SECURITY;
 ALTER TABLE public.iot_telemetry ENABLE ROW LEVEL SECURITY;
 
--- Allow anonymous & authenticated users to read and insert data
+-- 5. Drop existing policies to prevent "already exists" errors on re-run
+DROP POLICY IF EXISTS "Allow public read access to plants" ON public.plants;
+DROP POLICY IF EXISTS "Allow public insert access to plants" ON public.plants;
+DROP POLICY IF EXISTS "Allow public update access to plants" ON public.plants;
+
+DROP POLICY IF EXISTS "Allow public read access to growth_logs" ON public.growth_logs;
+DROP POLICY IF EXISTS "Allow public insert access to growth_logs" ON public.growth_logs;
+
+DROP POLICY IF EXISTS "Allow public read access to iot_telemetry" ON public.iot_telemetry;
+DROP POLICY IF EXISTS "Allow public insert access to iot_telemetry" ON public.iot_telemetry;
+
+-- 6. Create Fresh RLS Access Policies
 CREATE POLICY "Allow public read access to plants" ON public.plants FOR SELECT USING (true);
 CREATE POLICY "Allow public insert access to plants" ON public.plants FOR INSERT WITH CHECK (true);
 CREATE POLICY "Allow public update access to plants" ON public.plants FOR UPDATE USING (true);
