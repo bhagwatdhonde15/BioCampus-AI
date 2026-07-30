@@ -1,5 +1,5 @@
 import React from 'react';
-import { Leaf, TreePine, MapPin, Wifi, WifiOff, Activity, Eye, Droplets, User, LogOut } from 'lucide-react';
+import { Leaf, TreePine, MapPin, Wifi, WifiOff, Activity, Eye, Droplets, User, LogOut, CheckCircle2, ShieldCheck } from 'lucide-react';
 import { GeolocationState, UserAccount } from '../types/plant';
 
 interface HeaderProps {
@@ -73,26 +73,32 @@ export const Header: React.FC<HeaderProps> = ({
         {/* User Account / Auth Controls */}
         <div className="flex items-center gap-2 flex-shrink-0">
           {currentUser ? (
-            <div className="flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-xl border border-white/20">
-              <div className="w-7 h-7 rounded-full bg-bioskyblue flex items-center justify-center text-white font-bold text-xs">
-                {currentUser.name.charAt(0).toUpperCase()}
+            <div className="flex items-center gap-2 bg-white/15 px-3 py-1.5 rounded-xl border border-white/20 shadow-md">
+              <div className="relative">
+                <div className="w-8 h-8 rounded-full bg-emerald-500 flex items-center justify-center text-white font-extrabold text-xs shadow">
+                  {currentUser.name.charAt(0).toUpperCase()}
+                </div>
+                <span className="absolute -bottom-0.5 -right-0.5 w-2.5 h-2.5 bg-emerald-400 border-2 border-bioblue rounded-full"></span>
               </div>
-              <div className="hidden sm:block text-left">
-                <p className="text-white font-bold text-xs leading-none">{currentUser.name}</p>
+              <div className="hidden sm:block text-left pr-1">
+                <div className="flex items-center gap-1">
+                  <p className="text-white font-bold text-xs leading-none">{currentUser.name}</p>
+                  <ShieldCheck size={12} className="text-emerald-400" />
+                </div>
                 <p className="text-blue-200 text-[10px]">{currentUser.role}</p>
               </div>
               <button
                 onClick={onLogout}
-                className="text-blue-200 hover:text-red-300 p-1 transition-colors"
-                title="Log Out"
+                className="bg-white/10 hover:bg-red-500/80 text-blue-200 hover:text-white p-1.5 rounded-lg transition-all"
+                title="Log Out Session"
               >
-                <LogOut size={15} />
+                <LogOut size={14} />
               </button>
             </div>
           ) : (
             <button
               onClick={onOpenAuthModal}
-              className="bg-bioskyblue hover:bg-bioskyblue/90 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-bioskyblue/30 transition-all"
+              className="bg-bioskyblue hover:bg-bioskyblue/90 text-white font-bold text-xs px-3.5 py-2 rounded-xl flex items-center gap-1.5 shadow-lg shadow-bioskyblue/30 transition-all border border-sky-300/30"
             >
               <User size={15} /> Sign In
             </button>

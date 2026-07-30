@@ -3,7 +3,7 @@ import {
   LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer
 } from 'recharts';
 import {
-  Droplets, Wifi, WifiOff, AlertTriangle, Zap, Radio, RefreshCw
+  Droplets, Wifi, WifiOff, AlertTriangle, Zap, RefreshCw
 } from 'lucide-react';
 import { PlantRecord } from '../types/plant';
 
@@ -22,7 +22,6 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
   onUpdatePlantMoisture,
 }) => {
   const [espIp, setEspIp] = useState<string>('10.58.122.4');
-  const [useSimulationMode, setUseSimulationMode] = useState<boolean>(false);
   const [moisturePercent, setMoisturePercent] = useState<number | null>(null);
   const [isLiveRealData, setIsLiveRealData] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState<string>('--');
@@ -30,9 +29,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
   const [fetchErrorMsg, setFetchErrorMsg] = useState<string | null>(null);
   const [pingLatencyMs, setPingLatencyMs] = useState<number>(0);
 
-  const isHttpsProduction = typeof window !== 'undefined' && window.location.protocol === 'https:';
-
-  // Ultra-Low Latency ESP8266 Polling Loop (300ms interval for real-time sync)
+  // Direct Hardware Polling Loop for ESP8266 at 10.58.122.4
   useEffect(() => {
     let isSubscribed = true;
 
@@ -41,16 +38,31 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
       let percentVal: number | null = null;
       let isReal = false;
 
-      // 1. Simulation Mode for Netlify Production Cloud Deployments
-      if (useSimulationMode) {
-        percentVal = Math.round(52 + Math.sin(Date.now() / 1200) * 18 + (Math.random() * 4 - 2));
-        isReal = true;
-      } else {
-        // 2. Try Proxied Endpoint first (bypasses browser CORS on local dev)
+      // 1. Try Proxied Endpoint first (bypasses browser CORS on local dev)
+      try {
+        const controller = new AbortController();
+        const timeoutId = setTimeout(() => controller.abort(), 600);
+        const res = await fetch('/esp-data', { signal: controller.signal });
+        clearTimeout(timeoutId);
+
+        if (res.ok) {
+          const data = await res.json();
+          if (typeof data.percent === 'number') {
+            percentVal = data.percent;
+            isReal = true;
+          }
+        }
+      } catch {
+        // Continue to direct IP attempt
+      }
+
+      // 2. Try Direct HTTP fetch to http://10.58.122.4/data
+      if (percentVal === null) {
         try {
           const controller = new AbortController();
-          const timeoutId = setTimeout(() => controller.abort(), 450);
-          const res = await fetch('/esp-data', { signal: controller.signal });
+          const timeoutId = setTimeout(() => controller.abort(), 600);
+          const directUrl = espIp.startsWith('http') ? espIp : `http://${espIp}/data`;
+          const res = await fetch(directUrl, { signal: controller.signal });
           clearTimeout(timeoutId);
 
           if (res.ok) {
@@ -61,28 +73,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
             }
           }
         } catch {
-          // Continue to direct IP attempt
-        }
-
-        // 3. Try Direct HTTP fetch if proxy didn't succeed
-        if (percentVal === null) {
-          try {
-            const controller = new AbortController();
-            const timeoutId = setTimeout(() => controller.abort(), 450);
-            const directUrl = espIp.startsWith('http') ? espIp : `http://${espIp}/data`;
-            const res = await fetch(directUrl, { signal: controller.signal });
-            clearTimeout(timeoutId);
-
-            if (res.ok) {
-              const data = await res.json();
-              if (typeof data.percent === 'number') {
-                percentVal = data.percent;
-                isReal = true;
-              }
-            }
-          } catch {
-            // Unreachable
-          }
+          // Unreachable
         }
       }
 
@@ -91,12 +82,12 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
       const elapsedMs = Math.round(performance.now() - startTime);
       const timeStr = new Date().toLocaleTimeString();
       setLastUpdate(timeStr);
-      setPingLatencyMs(useSimulationMode ? 12 : elapsedMs);
+      setPingLatencyMs(elapsedMs);
 
       if (isReal && percentVal !== null) {
         const clamped = Math.min(100, Math.max(0, Math.round(percentVal)));
 
-        // ⚡ INSTANT SYNCHRONIZED STATE UPDATE TO BOTH GAUGE & GRAPH SIMULTANEOUSLY
+        // ⚡ REAL HARDWARE STATE UPDATE TO BOTH GAUGE & GRAPH
         setMoisturePercent(clamped);
         setIsLiveRealData(true);
         setFetchErrorMsg(null);
@@ -120,18 +111,18 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
       } else {
         setMoisturePercent(null);
         setIsLiveRealData(false);
-        setFetchErrorMsg(`Unable to reach ESP8266 at ${espIp}. Browser security blocks local IP access over HTTPS on Netlify.`);
+        setFetchErrorMsg(`Unable to reach ESP8266 hardware at http://${espIp}/data. Verify ESP8266 is powered on.`);
       }
     };
 
     fetchRealDataFast();
-    // 300ms ultra-fast polling loop for real-time responsiveness
+    // 300ms ultra-fast polling loop for real hardware responsiveness
     const interval = setInterval(fetchRealDataFast, 300);
     return () => {
       isSubscribed = false;
       clearInterval(interval);
     };
-  }, [espIp, useSimulationMode, records, onUpdatePlantMoisture]);
+  }, [espIp, records, onUpdatePlantMoisture]);
 
   // Circumference calculation for circular gauge (r=70 => circumference = 439.82)
   const circumference = 439.82;
@@ -192,7 +183,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
               {isLiveRealData ? (
                 <>
                   <Zap size={12} className="text-emerald-600 animate-pulse" />
-                  REAL-TIME SYNC · {pingLatencyMs}ms Latency
+                  REAL SENSOR STREAMING · {pingLatencyMs}ms Latency
                 </>
               ) : (
                 '⚠️ SENSOR NOT CONNECTED'
@@ -201,10 +192,10 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
           </div>
         </div>
 
-        {/* IP Config & Netlify Cloud Simulation Toggle */}
-        <div className="bg-white border border-sky-100 rounded-2xl p-3 shadow-sm flex items-center gap-3 flex-wrap">
+        {/* IP Config Box */}
+        <div className="bg-white border border-sky-100 rounded-2xl p-3 shadow-sm flex items-center gap-3">
           <div className="flex items-center gap-1.5 text-xs">
-            <span className="font-bold text-bioblue">Sensor Endpoint:</span>
+            <span className="font-bold text-bioblue">ESP8266 IP:</span>
             <input
               type="text"
               value={espIp}
@@ -213,38 +204,27 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
               className="w-32 bg-sky-50 border border-sky-200 rounded-lg px-2 py-1 text-slate-700 font-mono outline-none text-xs"
             />
           </div>
-
           <button
-            onClick={() => setUseSimulationMode(!useSimulationMode)}
-            className={`px-3 py-1.5 rounded-lg text-xs font-bold flex items-center gap-1.5 transition-colors ${
-              useSimulationMode ? 'bg-bioskyblue text-white shadow' : 'bg-sky-50 text-bioblue border border-sky-200'
-            }`}
+            onClick={() => setEspIp('10.58.122.4')}
+            className="bg-bioblue text-white font-bold text-xs px-3 py-1 rounded-lg hover:bg-bioskyblue transition-colors"
           >
-            <Radio size={14} className={useSimulationMode ? 'animate-pulse text-emerald-300' : ''} />
-            {useSimulationMode ? 'Cloud Stream Active' : 'Enable Netlify Test Stream'}
+            Reconnect 10.58.122.4
           </button>
         </div>
       </div>
 
-      {/* Netlify HTTPS Mixed Content Alert */}
+      {/* Sensor Offline Alert */}
       {!isLiveRealData && (
         <div className="bg-amber-50 border border-amber-200 rounded-2xl p-4 text-amber-800 text-xs flex items-center justify-between gap-4 flex-wrap">
           <div className="flex items-center gap-2.5">
             <AlertTriangle size={20} className="text-amber-600 flex-shrink-0" />
             <div>
-              <p className="font-bold">ESP8266 Local Hardware (`10.58.122.4`) Unreachable from Netlify HTTPS Cloud</p>
+              <p className="font-bold">Connecting to ESP8266 NodeMCU at http://{espIp}/data...</p>
               <p className="text-amber-700 mt-0.5">
-                Browsers block local network HTTP requests from HTTPS sites. Enable Netlify Test Stream to test real-time 300ms telemetry curves on Netlify!
+                Ensure your ESP8266 is powered on at IP <code className="font-mono font-bold">{espIp}</code> and connected to local WiFi.
               </p>
             </div>
           </div>
-
-          <button
-            onClick={() => setUseSimulationMode(true)}
-            className="bg-amber-600 hover:bg-amber-700 text-white font-bold text-xs px-4 py-2 rounded-xl transition-colors shadow whitespace-nowrap"
-          >
-            Enable Netlify Test Stream →
-          </button>
         </div>
       )}
 
@@ -254,10 +234,10 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
         {/* Left Card: Circular Animated Moisture Gauge */}
         <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 text-center flex flex-col items-center justify-between">
           <div className="w-full flex justify-between items-center text-xs text-slate-400 mb-2">
-            <span className="font-mono font-bold text-bioblue">{espIp.toUpperCase()}</span>
+            <span className="font-mono font-bold text-bioblue">HTTP://{espIp}/DATA</span>
             <span className="flex items-center gap-1 font-semibold">
               {isLiveRealData ? <Wifi size={14} className="text-emerald-500" /> : <WifiOff size={14} className="text-amber-500" />}
-              {isLiveRealData ? `Live ${pingLatencyMs}ms` : 'Not Connected'}
+              {isLiveRealData ? `Real Stream ${pingLatencyMs}ms` : 'Not Connected'}
             </span>
           </div>
 
@@ -296,7 +276,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
               ) : (
                 <>
                   <span className="text-lg font-extrabold text-amber-600 uppercase tracking-wide">NOT CONNECTED</span>
-                  <span className="text-xs text-slate-400 font-mono mt-1">10.58.122.4</span>
+                  <span className="text-xs text-slate-400 font-mono mt-1">{espIp}</span>
                 </>
               )}
             </div>
@@ -325,8 +305,8 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
           <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6 h-full flex flex-col justify-between">
             <div className="flex justify-between items-center mb-4">
               <div>
-                <h3 className="font-bold text-bioblue text-base">Real-Time Synchronized Moisture Trend</h3>
-                <p className="text-slate-400 text-xs">Live 300ms ultra-low latency sync ({espIp})</p>
+                <h3 className="font-bold text-bioblue text-base">Real Hardware Soil Moisture Trend</h3>
+                <p className="text-slate-400 text-xs">Live 300ms readings from ESP12E Analog Pin A0 (http://{espIp}/data)</p>
               </div>
               <span className="text-xs font-mono font-bold bg-sky-50 text-bioskyblue border border-sky-200 px-2.5 py-1 rounded-lg">
                 {history.length} Live Points
@@ -347,7 +327,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
               </div>
             ) : (
               <div className="h-72 w-full flex items-center justify-center text-slate-400 text-sm italic border border-dashed border-sky-100 rounded-xl">
-                Waiting for first live data payload from {espIp}...
+                Waiting for real hardware data payload from http://{espIp}/data...
               </div>
             )}
           </div>
