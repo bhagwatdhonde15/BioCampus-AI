@@ -8,7 +8,7 @@ const INITIAL_NODES: IpDeviceNode[] = [
   {
     id: 'node-1',
     name: 'ESP8266 Soil Moisture Sensor',
-    ip: '10.58.122.4',
+    ip: '10.149.227.4',
     port: '80',
     type: 'sensor',
     status: 'ONLINE',
@@ -19,7 +19,7 @@ const INITIAL_NODES: IpDeviceNode[] = [
   {
     id: 'node-2',
     name: 'DroidCam AI Vision Stream',
-    ip: '10.58.122.34',
+    ip: '10.149.227.90',
     port: '4747',
     type: 'camera',
     status: 'ONLINE',
@@ -30,7 +30,7 @@ const INITIAL_NODES: IpDeviceNode[] = [
   {
     id: 'node-3',
     name: 'ESP32 Campus Weather Node',
-    ip: '10.58.122.15',
+    ip: '10.149.227.15',
     port: '8080',
     type: 'gateway',
     status: 'ONLINE',
@@ -41,7 +41,7 @@ const INITIAL_NODES: IpDeviceNode[] = [
   {
     id: 'node-4',
     name: 'Smart Irrigation Solenoid Valve',
-    ip: '10.58.122.50',
+    ip: '10.149.227.50',
     port: '80',
     type: 'irrigation',
     status: 'STANDBY',
@@ -59,8 +59,8 @@ export const IpVerseHub: React.FC = () => {
   const [newNameInput, setNewNameInput] = useState<string>('');
   const [activeConsoleLog, setActiveConsoleLog] = useState<string[]>([
     '[IP-VERSE LOG 14:48:00] Initialized IP-Verse Autonomous Intelligence Matrix.',
-    '[IP-VERSE LOG 14:48:01] Synced ESP8266 Sensor node at 10.58.122.4 (/data).',
-    '[IP-VERSE LOG 14:48:02] Connected DroidCam MJPEG Video Stream at 10.58.122.34:4747.',
+    '[IP-VERSE LOG 14:48:01] Synced ESP8266 Sensor node at 10.149.227.4 (/data).',
+    '[IP-VERSE LOG 14:48:02] Connected DroidCam MJPEG Video Stream at 10.149.227.90:4747.',
     '[IP-VERSE LOG 14:48:05] Multi-agent autonomous pipeline online & active.',
   ]);
 
@@ -80,7 +80,7 @@ export const IpVerseHub: React.FC = () => {
 
   const handleScanSubnet = () => {
     setIsScanning(true);
-    const newLog = `[IP-VERSE SCAN ${new Date().toLocaleTimeString()}] Scanning campus subnet 10.58.122.0/24 for active IoT nodes...`;
+    const newLog = `[IP-VERSE SCAN ${new Date().toLocaleTimeString()}] Scanning campus subnet 10.149.227.0/24 for active IoT nodes...`;
     setActiveConsoleLog((prev) => [newLog, ...prev]);
 
     setTimeout(() => {
@@ -96,21 +96,19 @@ export const IpVerseHub: React.FC = () => {
 
     const newNode: IpDeviceNode = {
       id: `node-${Date.now()}`,
-      name: newNameInput.trim() || `Custom Node (${newIpInput})`,
-      ip: newIpInput.trim(),
-      port: newPortInput.trim() || '80',
+      name: newNameInput || 'Generic IP Device',
+      ip: newIpInput,
+      port: newPortInput,
       type: 'sensor',
       status: 'ONLINE',
-      latencyMs: 12,
+      latencyMs: 15,
       lastPing: 'Just now',
-      details: `Custom IP device on port ${newPortInput}`,
+      details: 'User registered telemetry node',
     };
 
-    setNodes((prev) => [newNode, ...prev]);
-    setActiveConsoleLog((prev) => [
-      `[IP-VERSE ADD ${new Date().toLocaleTimeString()}] Registered new node ${newNode.name} at ${newNode.ip}:${newNode.port}`,
-      ...prev,
-    ]);
+    setNodes((prev) => [...prev, newNode]);
+    const addLog = `[IP-VERSE LOG ${new Date().toLocaleTimeString()}] Successfully registered custom device at http://${newIpInput}:${newPortInput}.`;
+    setActiveConsoleLog((prev) => [addLog, ...prev]);
 
     setNewIpInput('');
     setNewNameInput('');
@@ -121,22 +119,15 @@ export const IpVerseHub: React.FC = () => {
   return (
     <div className="max-w-screen-xl mx-auto px-4 py-6 space-y-6">
       
-      {/* Header Banner */}
-      <div className="bg-gradient-to-r from-bioblue via-bioblue-900 to-bioskyblue text-white rounded-2xl p-6 shadow-xl relative overflow-hidden">
-        <div className="relative z-10 flex justify-between items-start flex-wrap gap-4">
-          <div>
-            <div className="flex items-center gap-2">
-              <span className="bg-white/20 text-white text-xs font-bold px-3 py-1 rounded-full backdrop-blur-md uppercase tracking-wider">
-                IP-Verse Prime Vision
-              </span>
-              <span className="bg-emerald-400/20 text-emerald-300 text-xs font-bold px-3 py-1 rounded-full backdrop-blur-md">
-                Autonomous Matrix Active
-              </span>
-            </div>
-            <h2 className="text-2xl font-extrabold mt-2 flex items-center gap-2">
-              <Network size={28} className="text-bioskyblue-300" /> IP-Verse Autonomous IoT & Agent Command Center
+      {/* Title & Info Banner */}
+      <div className="bg-white rounded-2xl border border-sky-100 shadow-sm p-6">
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div className="space-y-1">
+            <h2 className="text-2xl font-bold text-bioblue flex items-center gap-2">
+              <Network className="text-bioskyblue animate-pulse" size={26} />
+              Sanjivani IP-Verse Hardware Manager
             </h2>
-            <p className="text-blue-200 text-xs max-w-2xl mt-1">
+            <p className="text-slate-500 text-xs max-w-2xl">
               Centralized network orchestration hub connecting campus ESP8266 sensors, DroidCam vision streams, smart irrigation gateways, and autonomous AI agents.
             </p>
           </div>
@@ -147,7 +138,7 @@ export const IpVerseHub: React.FC = () => {
             className="bg-bioskyblue hover:bg-bioskyblue/90 text-white font-bold text-xs px-4 py-2.5 rounded-xl flex items-center gap-2 shadow-lg shadow-bioskyblue/40 transition-all"
           >
             <RefreshCw size={16} className={isScanning ? 'animate-spin' : ''} />
-            {isScanning ? 'Scanning Subnet...' : 'Scan Campus 10.58.122.x'}
+            {isScanning ? 'Scanning Subnet...' : 'Scan Campus 10.149.227.x'}
           </button>
         </div>
       </div>
@@ -193,7 +184,7 @@ export const IpVerseHub: React.FC = () => {
           </div>
           <div>
             <p className="text-slate-400 text-xs font-bold uppercase tracking-wide">Subnet Range</p>
-            <p className="text-sm font-extrabold text-bioblue font-mono mt-1">10.58.122.0/24</p>
+            <p className="text-sm font-extrabold text-bioblue font-mono mt-1">10.149.227.0/24</p>
             <p className="text-slate-400 text-xs mt-0.5">Campus WiFi Net</p>
           </div>
         </div>
@@ -258,7 +249,7 @@ export const IpVerseHub: React.FC = () => {
               <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex items-center justify-between">
                 <div>
                   <p className="font-bold text-bioblue">Agent-2: Real-time YOLO Vision</p>
-                  <p className="text-slate-500 text-[11px]">DroidCam 10.58.122.34:4747</p>
+                  <p className="text-slate-500 text-[11px]">DroidCam 10.149.227.90:4747</p>
                 </div>
                 <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Active</span>
               </div>
@@ -266,7 +257,7 @@ export const IpVerseHub: React.FC = () => {
               <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex items-center justify-between">
                 <div>
                   <p className="font-bold text-bioblue">Agent-3: ESP8266 Telemetry Sync</p>
-                  <p className="text-slate-500 text-[11px]">10.58.122.4/data (Analog A0)</p>
+                  <p className="text-slate-500 text-[11px]">10.149.227.4/data (Analog A0)</p>
                 </div>
                 <span className="bg-emerald-100 text-emerald-800 px-2 py-0.5 rounded font-bold">Active</span>
               </div>
@@ -274,7 +265,7 @@ export const IpVerseHub: React.FC = () => {
               <div className="bg-sky-50/70 p-3 rounded-xl border border-sky-100 flex items-center justify-between">
                 <div>
                   <p className="font-bold text-bioblue">Agent-4: Automated Care Trigger</p>
-                  <p className="text-slate-500 text-[11px]">10.58.122.50 Smart Valve</p>
+                  <p className="text-slate-500 text-[11px]">10.149.227.50 Smart Valve</p>
                 </div>
                 <span className="bg-amber-100 text-amber-800 px-2 py-0.5 rounded font-bold">Standby</span>
               </div>
@@ -308,7 +299,7 @@ export const IpVerseHub: React.FC = () => {
                   <label className="block font-bold text-bioblue mb-1">IP Address</label>
                   <input
                     type="text"
-                    placeholder="10.58.122.x"
+                    placeholder="10.149.227.x"
                     value={newIpInput}
                     onChange={(e) => setNewIpInput(e.target.value)}
                     className="w-full bg-sky-50 border border-sky-200 rounded-xl px-3 py-2 text-slate-700 outline-none font-mono"

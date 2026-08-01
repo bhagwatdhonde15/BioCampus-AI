@@ -25,7 +25,7 @@ export const LiveYoloVision: React.FC<LiveYoloVisionProps> = ({
   onRequestApiKey,
 }) => {
   // DroidCam settings
-  const [deviceIp, setDeviceIp] = useState<string>('10.58.122.34');
+  const [deviceIp, setDeviceIp] = useState<string>('10.149.227.90');
   const [droidPort, setDroidPort] = useState<string>('4747');
   const [feedMode, setFeedMode] = useState<'droidcam' | 'webcam'>('droidcam');
   const [isConnected, setIsConnected] = useState<boolean>(true);
@@ -471,7 +471,7 @@ export const LiveYoloVision: React.FC<LiveYoloVisionProps> = ({
                   feedMode === 'droidcam' ? 'bg-bioskyblue text-white' : 'bg-slate-800 text-slate-300 hover:text-white'
                 }`}
               >
-                DroidCam (10.58.122.34)
+                DroidCam (10.149.227.90)
               </button>
               <button
                 onClick={() => setFeedMode('webcam')}
