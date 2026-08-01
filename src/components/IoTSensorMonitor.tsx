@@ -21,7 +21,7 @@ export const IoTSensorMonitor: React.FC<IoTSensorMonitorProps> = ({
   records,
   onUpdatePlantMoisture,
 }) => {
-  const [espIp, setEspIp] = useState<string>('10.58.122.4');
+  const [espIp, setEspIp] = useState<string>('10.149.227.4');
   const [moisturePercent, setMoisturePercent] = useState<number | null>(null);
   const [isLiveRealData, setIsLiveRealData] = useState<boolean>(false);
   const [lastUpdate, setLastUpdate] = useState<string>('--');

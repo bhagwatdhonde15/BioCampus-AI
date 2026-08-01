@@ -9,7 +9,7 @@ export default defineConfig({
     host: true,
     proxy: {
       '/esp-data': {
-        target: 'http://10.58.122.4/data',
+        target: 'http://10.149.227.4/data',
         changeOrigin: true,
         rewrite: (path) => path.replace(/^\/esp-data/, ''),
         configure: (proxy) => {
